@@ -29,23 +29,23 @@ const TRADER_ADDRESS_LABEL: &str = "Received";
 // You can use calls not provided in RPC lib API using the generic `call` function.
 // An example of using the `send` RPC call, which doesn't have exposed API.
 // You can also use serde_json `Deserialize` derivation to capture the returned json result.
-fn send(rpc: &Client, addr: &str) -> bitcoincore_rpc::Result<String> {
+fn send(rpc: &Client, addr: &str, change_address: Option<&str>) -> bitcoincore_rpc::Result<String> {
     // Specification detail (from test case): Vin is expected to have a lenght of 1.
     // Gets list of unspent utxo and selected a single one that contains enough value to cover the transaction
     let unspent_utxos = rpc.list_unspent(None, None, None, None, None)?;
 
     let selected_utxo = unspent_utxos
         .iter()
-        .find(|v| v.amount >= Amount::from_int_btc(20));
+        .find(|v| v.amount > Amount::from_int_btc(20))
+        .ok_or_else(|| Error::ReturnedError("No UTXO with sufficient value".to_string()))?;
 
-    let option_arg = match selected_utxo {
-        Some(v) => {
-            json!({
-                "inputs": [{"txid": selected_utxo.unwrap().txid, "vout": selected_utxo.unwrap().vout}]
-            })
-        }
-        None => json!(null),
-    };
+    let mut option_arg = json!({
+        "inputs": [{"txid": selected_utxo.txid, "vout": selected_utxo.vout}],
+    });
+
+    if let Some(change_addr) = change_address {
+        option_arg["change_address"] = json!(change_addr);
+    }
 
     let args = [
         json!([{addr : 20 }]), // recipient address
@@ -131,11 +131,6 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // Generates spendable balance in the Miner wallet
     rpc.generate_to_address(COINBASE_MATURITY_BLOCK_HEIGHT, &miner_address)?;
 
-    println!(
-        "miner balance: {:?}",
-        miner_wc.get_balance(None, Some(true))
-    );
-
     // Load Trader wallet and generate a new address
     let trader_wallet = wallets
         .iter()
@@ -150,7 +145,11 @@ fn main() -> bitcoincore_rpc::Result<()> {
         .assume_checked();
 
     // Send 20 BTC from Miner to Trader
-    let txid = send(&miner_wc, &trader_address.to_string())?;
+    let txid = send(
+        &miner_wc,
+        &trader_address.to_string(),
+        Some(&miner_address.to_string()),
+    )?;
     let parsed_txid = Txid::from_str(&txid).unwrap();
 
     // Check transaction in mempool
@@ -168,9 +167,14 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     let vout = tx_json.transaction()?.output;
 
-    let change_output = vout.iter().find(|v| v.value < Amount::from_int_btc(20));
+    let change_output = vout.iter().find(|v| {
+        Address::from_script(&v.script_pubkey, Network::Regtest).ok() == Some(miner_address.clone())
+    });
 
-    let trader_output = vout.iter().find(|v| v.value == Amount::from_int_btc(20));
+    let trader_output = vout.iter().find(|v| {
+        Address::from_script(&v.script_pubkey, Network::Regtest).ok()
+            == Some(trader_address.clone())
+    });
 
     let mut change_address: Option<Address> = None;
 
