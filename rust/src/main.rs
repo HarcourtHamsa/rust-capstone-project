@@ -122,7 +122,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
         .expect("Miner wallet not found");
 
     // `Miner` wallet client
-    let miner_wc = generate_wallet_client(&miner_wallet)?;
+    let miner_wc = generate_wallet_client(miner_wallet)?;
 
     let miner_address = miner_wc
         .get_new_address(Some(MINER_ADDRESS_LABEL), None)?
@@ -143,7 +143,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
         .expect("Trader wallet not found");
 
     // `Trader` wallet client
-    let trader_wc = generate_wallet_client(&trader_wallet)?;
+    let trader_wc = generate_wallet_client(trader_wallet)?;
 
     let trader_address = trader_wc
         .get_new_address(Some(TRADER_ADDRESS_LABEL), None)?
@@ -155,7 +155,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Check transaction in mempool
     let mempool = miner_wc.get_mempool_entry(&parsed_txid)?;
-    println!("mempool: {:?}", mempool);
+    println!("mempool: {mempool:?}");
 
     // Mine 1 block to confirm the transaction
     // let confirmation_block = miner_wc.generate_to_address(1, &miner_address)?;
@@ -181,14 +181,14 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Write the data to ../out.txt in the specified format given in readme.md
     let filename = "out.txt";
-    let filepath = format!("../{}", filename);
+    let filepath = format!("../{filename}");
 
     let file_buffer = File::create(&filepath);
 
     match file_buffer {
         Ok(mut file) => {
-            writeln!(file, "{}", txid)?;
-            writeln!(file, "{}", miner_address)?;
+            writeln!(file, "{txid}")?;
+            writeln!(file, "{miner_address}")?;
             writeln!(
                 file,
                 "{}",
@@ -196,7 +196,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
                     .get_balance(None, Some(true))?
                     .to_float_in(Denomination::Bitcoin)
             )?;
-            writeln!(file, "{}", trader_address)?;
+            writeln!(file, "{trader_address}")?;
 
             if trader_output.is_some() {
                 writeln!(
@@ -235,10 +235,10 @@ fn main() -> bitcoincore_rpc::Result<()> {
             let mut block_hash_bytes = block_info.hash.to_byte_array();
             block_hash_bytes.reverse();
 
-            writeln!(file, "{}", hex::encode(&block_hash_bytes))?;
+            writeln!(file, "{}", hex::encode(block_hash_bytes))?;
         }
         Err(e) => {
-            println!("Failed to create file: {}", e);
+            println!("Failed to create file: {e}");
         }
     }
 
