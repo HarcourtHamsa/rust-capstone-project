@@ -17,6 +17,10 @@ describe("Evaluate submission", () => {
     // read txid from out.txt
     const data = readFileSync("out.txt", "utf8").trim().split("\n");
 
+    console.log({
+      data,
+    });
+
     expect(data.length).toBe(10);
 
     txid = data[0].trim();

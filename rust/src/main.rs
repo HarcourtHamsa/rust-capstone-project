@@ -131,6 +131,11 @@ fn main() -> bitcoincore_rpc::Result<()> {
     // Generates spendable balance in the Miner wallet
     rpc.generate_to_address(COINBASE_MATURITY_BLOCK_HEIGHT, &miner_address)?;
 
+    println!(
+        "miner balance: {:?}",
+        miner_wc.get_balance(None, Some(true))
+    );
+
     // Load Trader wallet and generate a new address
     let trader_wallet = wallets
         .iter()
@@ -150,6 +155,7 @@ fn main() -> bitcoincore_rpc::Result<()> {
 
     // Check transaction in mempool
     let mempool = miner_wc.get_mempool_entry(&parsed_txid)?;
+    println!("mempool: {:?}", mempool);
 
     // Mine 1 block to confirm the transaction
     // let confirmation_block = miner_wc.generate_to_address(1, &miner_address)?;
